@@ -8,7 +8,7 @@
 
 
 ### Environment ----------------------- ----------------------- ----------------------- -----------------------
-setwd("C:/Users/domin/OneDrive/DPhIl/06 Data Output/0601 Projects/202001 AER Baseline")
+setwd("C:/Users/domin/GitHub/IE_PSM_dummy")
 MAR_ORIGINAL <- par("mar")
 par(mar=c(5,4,1,1))
 rm(list=ls())
@@ -132,8 +132,11 @@ rm(total_row)
 
 ### Save data  ----------------------- ----------------------- ----------------------- -----------------------
 
+write.csv(sample_frame_a1, "02 processed data/school_level_data_treatment1.csv")
+write.csv(sample_frame_a2, "02 processed data/school_level_data_treatment2.csv")
+write.csv(sample_frame_a0, "02 processed data/school_level_data_control.csv")
 
-
+ 
 
 sampling_frame <- data.frame(
   school_id = 1:300,                          # 300 schools
