@@ -93,32 +93,32 @@ zones <- zones %>%
 
 school_sample2_zones <- zones %>%
   filter(treatment2 > 0 | sample == 1)
-psm_model <- matchit(sample ~ urbanization + poverty + primary_schools + enrollment + other_characteristic, 
-                     data = school_sample2_zones, 
-                     method = "nearest", # Nearest neighbor matching
-                     distance = "logit") # Use logistic regression for propensity score
-summary(psm_model)
+psm_model_z2 <- matchit(sample ~ urbanization + poverty + primary_schools + enrollment + other_characteristic, 
+                        data = school_sample2_zones, 
+                        method = "nearest", # Nearest neighbor matching
+                        distance = "logit") # Use logistic regression for propensity score
+summary(psm_model_z2)
 
 #plot(psm_model, type = "jitter")
 #plot(psm_model, type = "qq")
 
-school_sample2_zones <- match.data(psm_model)$id[match.data(psm_model)$sample  == 0]
+school_sample2_zones <- match.data(psm_model_z2)$id[match.data(psm_model_z2)$sample  == 0]
 
 # educational zones pertaining to control
 
 school_sample0_zones <- zones %>%
   filter(control > 0 | sample == 1) %>%
   filter(!(treatment2 > 0 & sample == 0)) 
-psm_model <- matchit(sample ~ urbanization + poverty + primary_schools + enrollment + other_characteristic, 
-                     data = school_sample0_zones, 
-                     method = "nearest", # Nearest neighbor matching
-                     distance = "logit") # Use logistic regression for propensity score
-summary(psm_model)
+psm_model_z0 <- matchit(sample ~ urbanization + poverty + primary_schools + enrollment + other_characteristic, 
+                        data = school_sample0_zones, 
+                        method = "nearest", # Nearest neighbor matching
+                        distance = "logit") # Use logistic regression for propensity score
+summary(psm_model_z0)
 
 #plot(psm_model, type = "jitter")
 #plot(psm_model, type = "qq")
 
-school_sample0_zones <- match.data(psm_model)$id[match.data(psm_model)$sample  == 0]
+school_sample0_zones <- match.data(psm_model_z0)$id[match.data(psm_model_z0)$sample  == 0]
 
 
 
@@ -130,30 +130,33 @@ school_sample2 <- rbind(school_sample2, school_sample1[, which(colnames(school_s
 school_sample2 <- school_sample2 %>%
   mutate(treatment = ifelse(treatment == 2, 0, treatment))
 
-psm_model <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
-                     data = school_sample2, 
-                     method = "nearest", # Nearest neighbor matching
-                     distance = "logit") # Use logistic regression for propensity score
-summary(psm_model)
+psm_model_t2 <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
+                        data = school_sample2, 
+                        method = "nearest", # Nearest neighbor matching
+                        distance = "logit") # Use logistic regression for propensity score
+summary(psm_model_t2)
 
 #plot(psm_model, type = "jitter")
 #plot(psm_model, type = "qq")
 
-schools <- match.data(psm_model)$school_id[match.data(psm_model)$treatment  == 0]
+schools <- match.data(psm_model_t2)$school_id[match.data(psm_model_t2)$treatment  == 0]
 school_sample2 <- school_sample2 %>%
   filter(school_id %in% schools)
+
+# The previous school matching only used schools from those zones that were matched with treatment 1 zones. 
+# In the following, we now directly match treatment-1 and treatment-2 schools.
 
 school_sample2_2 <- rbind(sample_frame_a2, school_sample1[, which(colnames(school_sample1) %in% colnames(school_sample2))]) 
 school_sample2_2 <- school_sample2_2 %>%
   mutate(treatment = ifelse(treatment == 2, 0, treatment))
 
-psm_model2 <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
-                     data = school_sample2_2, 
-                     method = "nearest", # Nearest neighbor matching
-                     distance = "logit") # Use logistic regression for propensity score
-summary(psm_model2)
+psm_model_t2_2 <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
+                          data = school_sample2_2, 
+                          method = "nearest", # Nearest neighbor matching
+                          distance = "logit") # Use logistic regression for propensity score
+summary(psm_model_t2_2)
 
-schools <- match.data(psm_model2)$school_id[match.data(psm_model2)$treatment  == 0]
+schools <- match.data(psm_model_t2_2)$school_id[match.data(psm_model_t2_2)$treatment  == 0]
 school_sample2_2 <- school_sample2_2 %>%
   filter(school_id %in% schools)
 
@@ -161,35 +164,87 @@ school_sample2_2 <- school_sample2_2 %>%
 
 ### Draw school sample for control group ----------------------- ----------------------- ----------------------- -----------------------
 
-school_sample2 <- sample_frame_a2 %>%
-  filter(zone %in% school_sample2_zones)
-school_sample2 <- rbind(school_sample2, school_sample1[, which(colnames(school_sample1) %in% colnames(school_sample2))]) 
-school_sample2 <- school_sample2 %>%
-  mutate(treatment = ifelse(treatment == 2, 0, treatment))
+school_sample0 <- sample_frame_a0 %>%
+  filter(zone %in% school_sample0_zones)
+school_sample0 <- rbind(school_sample0, school_sample1[, which(colnames(school_sample1) %in% colnames(school_sample0))]) 
 
-psm_model <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
-                     data = school_sample2, 
-                     method = "nearest", # Nearest neighbor matching
-                     distance = "logit") # Use logistic regression for propensity score
-summary(psm_model)
+psm_model_c <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
+                       data = school_sample0, 
+                       method = "nearest", # Nearest neighbor matching
+                       distance = "logit") # Use logistic regression for propensity score
+summary(psm_model_c)
 
 #plot(psm_model, type = "jitter")
 #plot(psm_model, type = "qq")
 
-schools <- match.data(psm_model)$school_id[match.data(psm_model)$treatment  == 0]
-school_sample2 <- school_sample2 %>%
+schools <- match.data(psm_model_c)$school_id[match.data(psm_model_c)$treatment  == 0]
+school_sample0 <- school_sample0 %>%
   filter(school_id %in% schools)
 
-school_sample2_2 <- rbind(sample_frame_a2, school_sample1[, which(colnames(school_sample1) %in% colnames(school_sample2))]) 
-school_sample2_2 <- school_sample2_2 %>%
-  mutate(treatment = ifelse(treatment == 2, 0, treatment))
+# The previous school matching only used schools from those zones that were matched with treatment 1 zones. 
+# In the following, we now directly match treatment-1 and control schools.
 
-psm_model2 <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
-                      data = school_sample2_2, 
+school_sample0_2 <- rbind(sample_frame_a0, school_sample1[, which(colnames(school_sample1) %in% colnames(school_sample2))]) 
+
+psm_model_c_2 <- matchit(treatment ~ standard3 + remoteness + student_teacher_ratio, 
+                      data = school_sample0_2, 
                       method = "nearest", # Nearest neighbor matching
                       distance = "logit") # Use logistic regression for propensity score
-summary(psm_model2)
+summary(psm_model_c_2)
 
-schools <- match.data(psm_model2)$school_id[match.data(psm_model2)$treatment  == 0]
-school_sample2_2 <- school_sample2_2 %>%
+
+schools <- match.data(psm_model_c_2)$school_id[match.data(psm_model_c_2)$treatment  == 0]
+school_sample0_2 <- school_sample0_2 %>%
   filter(school_id %in% schools)
+
+
+
+### Get the matching results cleaned up  ----------------------- ----------------------- ----------------------- -----------------------
+
+psm_model_z2 <- summary(psm_model_z2)
+psm_model_z2_all <- psm_model_z2$sum.all
+psm_model_z2_matched <- psm_model_z2$sum.matched
+
+psm_model_z0 <- summary(psm_model_z0)
+psm_model_z0_all <- psm_model_z0$sum.all
+psm_model_z0_matched <- psm_model_z0$sum.matched
+
+psm_model_t2 <- summary(psm_model_t2)
+psm_model_t2_all <- psm_model_t2$sum.all
+psm_model_t2_matched <- psm_model_t2$sum.matched
+
+psm_model_t2_2 <- summary(psm_model_t2_2)
+psm_model_t2_2_all <- psm_model_t2_2$sum.all
+psm_model_t2_2_matched <- psm_model_t2_2$sum.matched
+
+psm_model_c <- summary(psm_model_c)
+psm_model_c_all <- psm_model_c$sum.all
+psm_model_c_matched <- psm_model_c$sum.matched
+
+psm_model_c_2 <- summary(psm_model_c_2)
+psm_model_c_2_all <- psm_model_c_2$sum.all
+psm_model_c_2_matched <- psm_model_c_2$sum.matched
+
+
+
+### Save data  ----------------------- ----------------------- ----------------------- -----------------------
+
+write.csv(school_sample1, "03 Results/school_sample_treatment1_20241121_V01.csv", row.names = FALSE)
+write.csv(school_sample2, "03 Results/school_sample_treatment2_20241121_V01.csv", row.names = FALSE)
+write.csv(school_sample2_2, "03 Results/school_sample_treatment2_alternative_20241121_V01.csv", row.names = FALSE)
+write.csv(school_sample0, "03 Results/school_sample_control_20241121_V01.csv", row.names = FALSE)
+write.csv(school_sample0_2, "03 Results/school_sample_control_alternative_20241121_V01.csv", row.names = FALSE)
+
+write.csv(psm_model_z2_all, "03 Results/psm_results_treatment2_zones_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_z2_matched, "03 Results/psm_results_treatment2_zones_matches_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_z0_all, "03 Results/psm_results_control_zones_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_z0_matched, "03 Results/psm_results_control_zones_matched_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_t2_all, "03 Results/psm_results_treatment2_schools_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_t2_matched, "03 Results/psm_results_treatment2_schools_matched_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_t2_2_all, "03 Results/psm_results_treatment2_schools_alternative_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_t2_2_matched, "03 Results/psm_results_treatment2_schools_alternative_matched_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_c_all, "03 Results/psm_results_control_schools_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_c_matched, "03 Results/psm_results_control_schools_matched_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_c_2_all, "03 Results/psm_results_control_schools_alternative_all_20241121_V01.csv", row.names = TRUE)
+write.csv(psm_model_c_2_matched, "03 Results/psm_results_control_schools_alternative_matched_20241121_V01.csv", row.names = TRUE)
+
