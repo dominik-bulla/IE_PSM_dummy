@@ -1,0 +1,19 @@
+"","Means (CVA received)","Means (CVA not received)","Std..Mean.Diff.","Var..Ratio","eCDF.Mean","eCDF.Max","Std..Pair.Dist."
+"P score",0.44,0.43,0.06,1.12,0.01,0.06,0.06
+"beneficiary of partner B",0.06,0.05,0.01,NA,0,0,0.23
+"beneficiary of partner C",0.32,0.29,0.08,NA,0.04,0.04,0.67
+"beneficiary of partner D",0.24,0.29,-0.1,NA,0.04,0.04,0.71
+"beneficiary of partner E",0.18,0.17,0.02,NA,0.01,0.01,0.7
+"being IDP",0.48,0.43,0.11,NA,0.05,0.05,0.6
+"being a refugee",0.02,0.02,-0.02,NA,0,0,0.25
+"age",40.3,40.79,-0.04,1.01,0.01,0.04,1.07
+"being female",0.29,0.28,0.03,NA,0.01,0.01,0.85
+"having disabilities",0.13,0.11,0.03,NA,0.01,0.01,0.6
+"being married",0.52,0.54,-0.04,NA,0.02,0.02,0.84
+"# of children",2.31,2.32,-0.01,0.92,0.01,0.02,0.97
+"no education",0.5,0.56,-0.14,NA,0.07,0.07,0.87
+"no degree",0.24,0.2,0.09,NA,0.04,0.04,0.65
+"primary completed",0.14,0.14,0,NA,0,0,0.61
+"secondary completed",0.09,0.07,0.07,NA,0.02,0.02,0.37
+"university completed",0.02,0.01,0.03,NA,0,0,0.19
+"other degrees",0.01,0.01,0.03,NA,0,0,0.16

@@ -16,7 +16,7 @@ setwd("C:/Users/domin/GitHub/IE_PSM_dummy")
 MAR_ORIGINAL <- par("mar")
 par(mar=c(5,4,1,1))
 rm(list=ls())
-
+options(scipen=999)
 
 
 
@@ -37,7 +37,7 @@ library(stargazer)
 
 ### Import data ----------------------- ----------------------- ----------------------- -----------------------
 
-data <- read.xlsx("02 processed data/data_clean_20241121_V01.xlsx")
+data <- read.xlsx("02 processed data/data_clean_20240909_V01.xlsx")
 data <- data %>%
   mutate(cva = factor(cva, levels = unique(cva)),
          age2 = as.numeric(age2), 
@@ -74,29 +74,52 @@ write.csv(data_summary, "03 Results/03.2 Tables/Table 1_sample size_20240912.csv
 
 ### Summary stats ----------------------- ----------------------- ----------------------- -----------------------
 
+data_summary <- data %>%
+  group_by(cva) %>%
+  summarise(across(data_cols[6 : 26], ~round(mean(.) * 100, 2))) %>%
+  mutate(cva = as.character(cva),
+         type = "m") %>%
+  mutate(age = round(age / 100, 2),
+         income = round(income / 100, 2))
+data_summary_sd <- data %>%
+  group_by(cva) %>%
+  summarise(across(data_cols[6 : 26], ~round(sd(.) * 100, 2))) %>%
+  mutate(cva = as.character(cva),
+         type = "sd") %>%
+  mutate(age = round(age / 100, 2),
+         income = round(income / 100, 2))
+data_summary <- rbind(data_summary, data_summary_sd)
+rm(data_summary_sd)
+data_summary <- data_summary %>%
+  arrange(cva, type) %>%
+  select(-c(type)) %>%
+  mutate(IP = "Total") %>%
+  select(IP, everything())
 data_summaryIP <- data %>%
   group_by(IP, cva) %>%
-  summarise(across(data_cols[6 : 26], ~round(mean(.), 2))) %>%
+  summarise(across(data_cols[6 : 26], ~round(mean(.) * 100, 2))) %>%
   mutate(cva = as.character(cva),
-         type = "m") 
+         type = "m")  %>%
+  mutate(age = round(age / 100, 2),
+         income = round(income / 100, 2))
 data_summaryIP_sd <- data %>%
   group_by(IP, cva) %>%
-  summarise(across(data_cols[6 : 26], ~round(sd(.), 2))) %>%
+  summarise(across(data_cols[6 : 26], ~round(sd(.) * 100, 2))) %>%
   mutate(cva = as.character(cva),
-         type = "sd")
+         type = "sd") %>%
+  mutate(age = round(age / 100, 2),
+         income = round(income / 100, 2))
 data_summaryIP <- rbind(data_summaryIP, data_summaryIP_sd)
 rm(data_summaryIP_sd)
 data_summaryIP <- data_summaryIP %>%
-  arrange(IP, cva, type) %>%
-  select(-c(type))
-write.csv(data_summaryIP, "03 Results/03.2 Tables/Table 2_sample means of evaluation sample_20240912.csv", row.names = FALSE)
+  arrange(IP, cva, type) 
+data_summaryIP <- rbind(data_summaryIP, data_summary)
+write.csv(data_summaryIP[, which(colnames(data_summaryIP) != "type")], "03 Results/03.2 Tables/Table 2_sample means of evaluation sample_20240912.csv", row.names = FALSE)
 
-data_cols <- c("assafe", "lesssafe", "safer", 
-               "parenting_better", "relationship_better", 
-               "asworried", "lessworried", "moreworried", 
-               "income" )
-lapply(data[, data_cols], function(x) t.test(x ~ cva, data = data)$p.value)
+lapply(data[, data_cols[6 : 26]], function(x) t.test(x ~ cva, data = data)$p.value)
 rm(data_cols)
+
+
 
 
 
@@ -109,7 +132,7 @@ ggplot(data, aes(x = income)) +
              strip.position = "top",
              labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
   labs(
-    title = "Income distributed by treatment status",
+    #title = "Income distributed by treatment status",
     subtitle = paste0("All data (n = ", nrow(data), ")"),
     x = "Annual income (in XYZ)",
     y = "Density",
@@ -131,11 +154,10 @@ ggsave(paste0("01 income by cva_histogram.png"),
        bg = 'white')
 dev.off()
 
-ggplot(data_summaryIP, aes(x = IP, y = income, fill = cva)) +
+ggplot(data_summaryIP[data_summaryIP$type == "m" & data_summaryIP$IP != "Total", ], aes(x = IP, y = income, fill = cva)) +
           geom_bar(position = "dodge", 
                    stat= "identity") +
           labs(
-            title = paste("Average income by implementing partner treatment status"),
             subtitle = paste0("All data (n = ", nrow(data), ")"),
             y = "The average income (in XYZ)",
             caption = "Source: endine 2023 \n© CONSORTIUM") + 
@@ -150,7 +172,7 @@ ggplot(data_summaryIP, aes(x = IP, y = income, fill = cva)) +
           ) + 
           scale_x_discrete() +
           scale_fill_manual("CVA status", values = c("received" = "#0072BC", "not received" = "#8EBEFF"), 
-                            labels = c("received" = "CVA's received", "not received" = "CVA's received")) +
+                            labels = c("received" = "CVA's received", "not received" = "CVA's not received")) +
           theme(panel.background = element_rect(fill = "white"),
                 panel.grid.major = element_line(color = "grey"),
                 axis.title = element_text(face = "plain"),
@@ -177,7 +199,7 @@ dev.off()
 m_pscore <- glm(cva ~ IP_B + IP_C + IP_D + IP_E + 
                 idp + refugees + 
                 age + female + disability + married + children + 
-                edu_no_completion + edu_primary + edu_secondary + edu_university + edu_other,
+                  edu_no_education + edu_no_completion + edu_primary + edu_secondary + edu_university + edu_other,
                 family = binomial(), data = data)
 summary(m_pscore)
 data_pscore <- data.frame(pr_score = predict(m_pscore, type = "response"),
@@ -189,29 +211,70 @@ data_pscore <- data.frame(pr_score = predict(m_pscore, type = "response"),
 
 
 
-### Common support in terms of propensity scores ----------------------- ----------------------- ----------------------- -----------------------
+### Matching up units ----------------------- ----------------------- ----------------------- -----------------------
 
-ggplot(data_pscore, aes(x = pr_score, fill = cva)) +
-  geom_histogram(position = "identity", alpha = 0.5, bins = 100) +
-  labs(title = "Histogram with Two Groups",
-       x = "Value",
-       y = "Frequency") +
+match <- matchit(cva ~ IP_B + IP_C + IP_D + IP_E + 
+                       idp + refugees + 
+                       age + female + disability + married + children + 
+                       edu_no_education + edu_no_completion + edu_primary + edu_secondary + edu_university + edu_other,
+                       method = "nearest", data = data)
+matching_results <- summary(match)
+matching_results_all <- data.frame(round(matching_results$sum.all, 2))
+rownames(matching_results_all) <- c("P score", 
+                                    "beneficiary of partner B", "beneficiary of partner C", "beneficiary of partner D", "beneficiary of partner E",
+                                    "being IDP", "being a refugee",
+                                    "age", "being female", "having disabilities",
+                                    "being married", "# of children", 
+                                    "no education", "no degree", "primary completed", "secondary completed", "university completed", "other degrees")
+matching_results_all <- matching_results_all %>%
+  rename("Means (CVA received)" = Means.Treated,
+         "Means (CVA not received)" =  Means.Control,)
+write.csv(matching_results_all, "03 Results/03.2 Tables/Table 3_Summary of balance for all data_20240912.csv", row.names = TRUE)
+
+matching_results_matched <- data.frame(round(matching_results$sum.matched, 2))
+rownames(matching_results_matched) <- c("P score", 
+                                    "beneficiary of partner B", "beneficiary of partner C", "beneficiary of partner D", "beneficiary of partner E",
+                                    "being IDP", "being a refugee",
+                                    "age", "being female", "having disabilities",
+                                    "being married", "# of children", 
+                                    "no education", "no degree", "primary completed", "secondary completed", "university completed", "other degrees")
+matching_results_matched <- matching_results_matched %>%
+  rename("Means (CVA received)" = Means.Treated,
+         "Means (CVA not received)" =  Means.Control,)
+write.csv(matching_results_matched, "03 Results/03.2 Tables/Table 4_Summary of balance for matched data_20240912.csv", row.names = TRUE)
+
+   # extract matched-up data
+
+data_PSM <- match.data(match)
+data_PSM_all <- match.data(match, drop.unmatched = FALSE)
+
+
+
+### Common support in terms of propensity scores ----------------------- ----------------------- ----------------------- -----------------------
+data_PSM_all$c <- 0
+data_PSM$c <- 1
+data_PSM_c <- rbind(data_PSM_all, data_PSM)
+ggplot(data_PSM_c, aes(x = distance, fill = cva)) +
+  geom_histogram(aes(y = ..density..), bins = 100, alpha = 0.7)  +
+  scale_fill_manual("CVA status", values = c("received" = "#0072BC", "not received" = "#8EBEFF"), 
+                    labels = c("received" = "CVA's received", "not received" = "CVA's not received")) +
+  facet_wrap(~c, ncol = 2, 
+             strip.position = "top",
+             labeller = as_labeller(c("0" = paste0("All data (n = ", nrow(data_PSM_all), ")"), "1" = paste0("Matched data (n = ", nrow(data_PSM), ")")))) +
   labs(
-    title = "Common support in terms of propensity scores across treatment groups",
-    subtitle = paste0("All data (n = ", nrow(data_pscore), ")"),
     x = "Probability of receiving cash vouchers",
     y = "Density",
     caption = "Source: endine 2023 \n© CONSORTIUM") +
-  scale_fill_manual("CVA status", values = c("received" = "#0072BC", "not received" = "#8EBEFF"), 
-                    labels = c("received" = "CVA's received", "not received" = "CVA's received")) +
-  theme(panel.background = element_rect(fill = "white"),
+  theme(plot.title = element_blank(),
+        panel.background = element_rect(fill = "white"),
         panel.grid.major = element_line(color = "grey"),
         axis.title = element_text(face = "plain"),
         axis.text.x = element_text(size = 12, face = "plain"),
         axis.text.y = element_text(size = 12, face = "plain"),
         panel.grid.major.x = element_blank(),
         legend.title = element_blank(),
-        legend.position = "bottom")
+        legend.position = "bottom",
+        strip.background = element_rect(fill = "white"))
 
 ggsave(paste0("03 propensity scores by cva_histogram.png"),
        plot = last_plot(),
@@ -224,222 +287,44 @@ dev.off()
 
 
 
-### Distribution of propensity scores across subsets----------------------- ----------------------- ----------------------- -----------------------
 
-   # all IP's
+### Common support in terms of propensity scores [by implementing partners] ----------------------- ----------------------- ----------------------- -----------------------
 
-ggplot(data_pscore, aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Across all implenenting partners (n = ", nrow(data_pscore), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("04 propensity scores by cva_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-
-
-# IP A only
-
-ggplot(data_pscore[data_pscore$IP_B == 0 &
-                   data_pscore$IP_C == 0 & 
-                   data_pscore$IP_D == 0 &
-                   data_pscore$IP_E == 0, ], aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Implenenting partner A only (n = ", nrow(data_pscore[data_pscore$IP_B == 0 & data_pscore$IP_C == 0 & data_pscore$IP_D == 0 & data_pscore$IP_E == 0, ]), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("05.1 propensity scores by cva_IP_A_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-# IP B only
-
-ggplot(data_pscore[data_pscore$IP_B == 1, ], aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Implenenting partner B only (n = ", nrow(data_pscore[data_pscore$IP_B == 1,]), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("05.2 propensity scores by cva_IP_B_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-# IP C only
-
-ggplot(data_pscore[data_pscore$IP_C == 1, ], aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Implenenting partner C only (n = ", nrow(data_pscore[data_pscore$IP_C == 1,]), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("05.3 propensity scores by cva_IP_C_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-# IP D only
-
-ggplot(data_pscore[data_pscore$IP_D == 1, ], aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Implenenting partner D only (n = ", nrow(data_pscore[data_pscore$IP_D == 1,]), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("05.4 propensity scores by cva_IP_D_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-# IP E only
-
-ggplot(data_pscore[data_pscore$IP_E == 1, ], aes(x = pr_score)) +
-  geom_histogram(aes(y = ..density..), bins = 100, fill = "#0072BC", alpha = 0.7) +
-  geom_density(aes(y=..density..)) +
-  facet_wrap(~cva, ncol = 2, 
-             strip.position = "top",
-             labeller = as_labeller(c("received" = "CVA's received", "not received" = "CVA's received"))) +
-  labs(
-    title = "Propensity scores distributed by treatment status",
-    subtitle = paste0("Implenenting partner E only (n = ", nrow(data_pscore[data_pscore$IP_E == 1,]), ")"),
-    x = "Probability of receiving cash vouchers",
-    y = "Density",
-    caption = "Source: endine 2023 \n© CONSORTIUM") +
-  theme(panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "grey"),
-        axis.title = element_text(face = "plain"),
-        axis.text.x = element_text(size = 12, face = "plain"),
-        axis.text.y = element_text(size = 12, face = "plain"),
-        panel.grid.major.x = element_blank(),
-        legend.title = element_text(size = 12, face = "plain"),
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "white"))
-
-ggsave(paste0("05.5 propensity scores by cva_IP_E_histogram.png"),
-       plot = last_plot(),
-       device = png(),
-       path = "03 Results/03.1 Graphs/",
-       scale = 1,
-       dpi = 150,
-       bg = 'white')
-dev.off()
-
-
-
-### Matching up units ----------------------- ----------------------- ----------------------- -----------------------
-
-match <- matchit(cva ~ IP_B + IP_C + IP_D + IP_E + 
-                       idp + refugees + 
-                       age + female + disability + married + children + 
-                       edu_no_completion + edu_primary + edu_secondary + edu_university + edu_other,
-                       method = "nearest", data = data)
-summary(match)
-data_PSM <- match.data(match)
+variables <- c("IP_A", "IP_B", "IP_C", "IP_D", "IP_E")
+c <- 1
+for (var in variables) {
+  ggplot(data_PSM_c[data_PSM_c[, var] == 1, ], aes(x = distance, fill = cva)) +
+    geom_histogram(aes(y = ..density..), bins = 100, alpha = 0.7)  +
+    scale_fill_manual("CVA status", values = c("received" = "#0072BC", "not received" = "#8EBEFF"), 
+                      labels = c("received" = "CVA's received", "not received" = "CVA's not received")) +
+    facet_wrap(~c, ncol = 2, 
+               strip.position = "top",
+               labeller = as_labeller(c("0" = paste0("All data (n = ", nrow(data_PSM_c[data_PSM_c[, var] == 1, ]), ")"), "1" = paste0("Matched data (n = ", nrow(data_PSM_c[data_PSM_c[, var] == 1 & data_PSM_c$weights == 1, ]), ")")))) +
+    labs(
+      x = "Probability of receiving cash vouchers",
+      y = "Density",
+      caption = "Source: endine 2023 \n© CONSORTIUM") +
+    theme(plot.title = element_blank(),
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major = element_line(color = "grey"),
+          axis.title = element_text(face = "plain"),
+          axis.text.x = element_text(size = 12, face = "plain"),
+          axis.text.y = element_text(size = 12, face = "plain"),
+          panel.grid.major.x = element_blank(),
+          legend.title = element_blank(),
+          legend.position = "bottom",
+          strip.background = element_rect(fill = "white"))
+  
+  ggsave(paste0("04.",c,"_propensity scores by cva_histogram_", var,".png"),
+         plot = last_plot(),
+         device = png(),
+         path = "03 Results/03.1 Graphs/",
+         scale = 1,
+         dpi = 150,
+         bg = 'white')
+  dev.off()
+  c <- c + 1
+}
 
 
 
@@ -519,16 +404,14 @@ for (var in variables) {
   
   c <- c +1
   
-  
-  
   combined_plot <- (plot1 + plot2)  + 
-    plot_annotation(title = "Comparison of all data with matched data",
+    plot_annotation(#title = "Comparison of all data with matched data",
                     subtitle = paste0("Matching variable: ", variables_label[which(var == variables)]),
                     caption = "Source: endine 2023 \n© CONSORTIUM"
     )
   print(combined_plot)
   
-  ggsave(paste0("06.",c, " Comparison of all data with matched data_", var,".png"),
+  ggsave(paste0("05.",c, " Comparison of all data with matched data_", var,".png"),
          plot = last_plot(),
          device = png(),
          path = "03 Results/03.1 Graphs/",
@@ -610,7 +493,7 @@ for (var in variables) {
     )
   print(combined_plot)
   
-  ggsave(paste0("06.",c, " Comparison of all data with matched data_", var,".png"),
+  ggsave(paste0("05.",c, " Comparison of all data with matched data_", var,".png"),
          plot = last_plot(),
          device = png(),
          path = "03 Results/03.1 Graphs/",
@@ -699,7 +582,7 @@ for (var in variables) {
     )
   print(combined_plot)
   
-  ggsave(paste0("07.",c, " Outcome Comparison of all data with matched data_", var,".png"),
+  ggsave(paste0("06.",c, " Outcome Comparison of all data with matched data_", var,".png"),
          plot = last_plot(),
          device = png(),
          path = "03 Results/03.1 Graphs/",
@@ -725,14 +608,13 @@ variables_label <- c("implementing partner (A)",
                      "implementing partner (D)", 
                      "implementing partner (E)", 
                      "status (host)", "status (IDP)", "status (refugees)", 
-                     "gender (female)", "disability status", "marital status",
+                     "age", "# of children", "gender (female)", "disability status", "marital status",
                      "education (primary)", 
                      "education (secondary)", 
                      "education (university)", 
                      "education (no completion)", 
                      "education (no education at all)", 
                      "education (other)")
-
 c <- 0                            #  counter for the sub-numbering of the graphs in 8
 for (var in variables) {
   data_PSM2 <- data_PSM[,c("distance", "cva", var)]
@@ -744,8 +626,9 @@ for (var in variables) {
          xlab("Propensity score") +
          ylab(var) +
          scale_color_manual(values = c("received" = "#0072BC", "not received" = "#8EBEFF")) +
-         labs(title = "Relationship between matching variables and propensity scores \nacross comparison groups",
-              subtitle = paste0("Matching variable: ", variables_label[which(var == variables)]),
+         labs(
+              #title = "Relationship between matching variables and propensity scores \nacross comparison groups",
+              subtitle = paste0("Matching variable: ", variables_label[which(var == variables)], "\nMatched data only (n = ", nrow(data_PSM),")"),
               y = "",
               x = "Propensity scores",
               caption = "Source: endine 2023 \n© CONSORTIUM") +
@@ -758,7 +641,7 @@ for (var in variables) {
   
   c <- c + 1
   
-  ggsave(paste0("08.",c, " Relationship between matching variables and propensity scores_", var,".png"),
+  ggsave(paste0("07.",c, " Relationship between matching variables and propensity scores_", var,".png"),
          plot = last_plot(),
          device = png(),
          path = "03 Results/03.1 Graphs/",
@@ -822,7 +705,7 @@ stargazer(m_i0, m_i, psm_i0, psm_i,
                              "Primary education completed", "Secondary education completed", "University completed"),
           title = "Estimated CVA effects on income",
           digits = 2,
-          out = "03 results/03.2 Tables/Estimated CVA effects_20240911_V01.htm")
+          out = "03 results/03.2 Tables/Table 5_Estimated CVA effects_20240911_V01.htm")
 
    # In terms of percentage, it appears that the actual effect size higher by about 
 
