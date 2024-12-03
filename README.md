@@ -1,2 +1,2 @@
 # IE_PSM_dummy
-A dummy dataset as well as codes to perform propensity score matching to construct treatment and control samples 
+It contains a R code to perform the quasi-experimental approach of propensity score matching to estimate average treatment effect on the treated (ATT) using a real-life observational dataset on cash vouchers collected in 2024. 
