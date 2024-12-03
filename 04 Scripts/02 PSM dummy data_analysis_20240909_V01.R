@@ -628,7 +628,7 @@ for (var in variables) {
          scale_color_manual(values = c("received" = "#0072BC", "not received" = "#8EBEFF")) +
          labs(
               #title = "Relationship between matching variables and propensity scores \nacross comparison groups",
-              subtitle = paste0("Matching variable: ", variables_label[which(var == variables)], "\nMatched data only (n = ", nrow(data_PSM),")"),
+              subtitle = paste0("Matched data only (n = ", nrow(data_PSM),")"),
               y = "",
               x = "Propensity scores",
               caption = "Source: endine 2023 \n© CONSORTIUM") +
